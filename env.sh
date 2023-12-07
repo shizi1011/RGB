@@ -11,3 +11,4 @@ pip install einops
 pip install fschat
 pip install nvgpu
 pip install bitsandbytes
+pip install scipy
