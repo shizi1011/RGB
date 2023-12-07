@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, AutoModel, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModel, AutoModelForCausalLM,BitsAndBytesConfig
 import torch
 
 class ChatglmModel:
@@ -161,7 +161,46 @@ class LLama2:
         outputs = self.model.generate(**inputs, do_sample=True, temperature=temperature, top_p=top_p, max_length=max_new_tokens + inputs['input_ids'].size(-1))
         response = self.tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
         return response
+class Zephyr:
+    def __init__(self,plm) -> None:
+        self.tokenizer = AutoTokenizer.from_pretrained(plm)
+        bnb_config=BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16
+        )
+        self.model = AutoModelForCausalLM.from_pretrained(
+            plm,
+            quantization_config=bnb_config,
+            load_in_4bit=True,
+            torch_dtype=torch.bfloat16,
+            device_map='auto'
+        )
+    
+    def get_prompt(self, message: str, chat_history: list[tuple[str, str]],
+               system_prompt: str) -> str:
+        texts = [f'<s><|system|>\n{system_prompt}</s>\n']
+        # The first user input is _not_ stripped
+        do_strip = False
+        for user_input, response in chat_history:
+            user_input = user_input.strip() if do_strip else user_input
+            do_strip = True
+            texts.append(f'<|user|>/n{user_input}</s>/n<|assistant>/n{response.strip()}/n')
+        message = message.strip() if do_strip else message
+        texts.append(f'<|user|>/n{message}</s>/n<|assistant|>/n')
+        return ''.join(texts)
 
+    def generate(self, text, temperature=0.7, system="You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.", top_p=0.8, max_new_tokens=256):
+        query = self.get_prompt(text, [], system)
+
+        inputs = self.tokenizer(query, return_tensors="pt", add_special_tokens=False,return_token_type_ids=False)
+        for k in inputs:
+            inputs[k] = inputs[k].cuda()
+
+        outputs = self.model.generate(**inputs, do_sample=True, temperature=temperature, top_p=top_p, max_length=max_new_tokens + inputs['input_ids'].size(-1))
+        response = self.tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
+        return response
 import requests
 
 class OpenAIAPIModel():
