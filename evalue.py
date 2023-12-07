@@ -228,7 +228,7 @@ if __name__ == '__main__':
     elif 'BELLE' in modelname:
         model = BELLE(plm = args.plm)
     elif 'Zephyr' in modelname:
-        model = Zephyr(plm = arg.plm)
+        model = Zephyr(plm = args.plm)
     
 
 
