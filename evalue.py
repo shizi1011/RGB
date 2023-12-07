@@ -229,6 +229,8 @@ if __name__ == '__main__':
         model = BELLE(plm = args.plm)
     elif 'Zephyr' in modelname:
         model = Zephyr(plm = args.plm)
+    elif  'Notus' in modelname:
+        model = Notus(plm = args.plm)
     
 
 
